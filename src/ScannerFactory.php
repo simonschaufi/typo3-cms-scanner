@@ -23,7 +23,7 @@ final readonly class ScannerFactory
     ) {
     }
 
-    public function createFor(int $major = 8, $minor = 3): Scanner
+    public function createFor(int $major = 8, int $minor = 3): Scanner
     {
         $finder = new Finder();
         $parser = $this->parserFactory->createForVersion(PhpVersion::fromComponents($major, $minor));

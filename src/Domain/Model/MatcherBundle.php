@@ -21,7 +21,7 @@ readonly class MatcherBundle
     private array $configuration;
 
     /**
-     * @param list<string> $classNames Fully qualified matcher class names
+     * @param list<class-string> $classNames Fully qualified matcher class names
      */
     public function __construct(
         string $configurationPath,
