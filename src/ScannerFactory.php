@@ -13,23 +13,24 @@ final readonly class ScannerFactory
     {
         return new self(
             new ParserFactory(),
-            new MatcherFactory()
+            new MatcherFactory(),
+            new Finder()
         );
     }
 
     public function __construct(
         private ParserFactory $parserFactory,
-        private MatcherFactory $matcherFactory
+        private MatcherFactory $matcherFactory,
+        private Finder $finder
     ) {
     }
 
     public function createFor(int $major = 8, int $minor = 3): Scanner
     {
-        $finder = new Finder();
         $parser = $this->parserFactory->createForVersion(PhpVersion::fromComponents($major, $minor));
 
         return new Scanner(
-            $finder,
+            $this->finder,
             $parser,
             $this->matcherFactory
         );
