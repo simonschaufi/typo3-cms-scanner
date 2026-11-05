@@ -32,7 +32,8 @@ final class GlobalMatcherTest extends TestCase
     {
         $parser = (new ParserFactory())->createForVersion(PhpVersion::fromComponents(8, 3));
         $fixtureFile = __DIR__ . '/Fixtures/GlobalMatcherFixture.php';
-        $statements = $parser->parse(file_get_contents($fixtureFile));
+        $statements = $parser->parse((string)file_get_contents($fixtureFile));
+        self::assertIsArray($statements, 'Code could not be parsed.');
 
         $traverser = new NodeTraverser();
         $traverser->addVisitor(new NameResolver());

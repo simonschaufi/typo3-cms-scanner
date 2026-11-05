@@ -6,12 +6,15 @@ includes:
 parameters:
     paths:
         - src
+        - tests
     featureToggles:
     	rawMessageInBaseline: true
     level: 8
     excludePaths:
         # These test fixtures *could* be streamlined but currently generate lots of failures
+        - tests/Functional/Fixtures
         - tests/Unit/Php/Matcher
+        - tests/Unit/Php/Visitor/Fixtures
     strictRules:
         allRules: false
         booleansInConditions: false
