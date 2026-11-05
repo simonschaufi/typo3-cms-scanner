@@ -7,14 +7,14 @@ use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor;
 use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\Parser;
-use SimonSchaufi\Scanner\Domain\Model\DirectoryMatches;
-use SimonSchaufi\Scanner\Domain\Model\FileMatches;
+use SimonSchaufi\Scanner\Domain\Model\DirectoryResult;
 use SimonSchaufi\Scanner\Domain\Model\MatcherBundleCollection;
 use SimonSchaufi\Scanner\Domain\Model\ScanMatch;
 use SimonSchaufi\Scanner\Php\MatcherFactory;
 use SimonSchaufi\Scanner\Php\Visitor\CodeStatistics;
 use SimonSchaufi\Scanner\Php\Visitor\GeneratorClassesResolver;
 use SimonSchaufi\Scanner\Result\Indicator;
+use SimonSchaufi\Scanner\Result\ScanResult;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
 
@@ -23,7 +23,7 @@ class Scanner
     /**
      * Matcher configurations with their files already loaded, see getResolvedMatcherConfigurations().
      *
-     * @var list<array<string, mixed>>|null
+     * @var array<int, array{class?: string, configurationFile?: string, configurationArray?: mixed}>|null
      */
     private ?array $resolvedMatcherConfigurations = null;
 
@@ -44,10 +44,8 @@ class Scanner
     ) {
     }
 
-    public function scanPath(
-        string $path,
-        MatcherBundleCollection $collection
-    ): DirectoryMatches {
+    public function scanPath(string $path, MatcherBundleCollection $collection): DirectoryResult
+    {
         if (!is_dir($path)) {
             throw new \RuntimeException(
                 sprintf('Path "%s" does not exist or is no directory.', $path),
@@ -55,7 +53,7 @@ class Scanner
             );
         }
 
-        $directoryMatches = new DirectoryMatches($path);
+        $directoryResult = new DirectoryResult($path);
         $files = $this->finder
             ->files()
             ->ignoreUnreadableDirs()
@@ -63,24 +61,35 @@ class Scanner
             ->name('*.php')
             ->sortByName();
 
+        $numberOfIgnoredFiles = 0;
+        $numberOfEffectiveCodeLines = 0;
+        $numberOfIgnoreLines = 0;
+
         /** @var SplFileInfo $file */
         foreach ($files as $file) {
-            $fileMatches = $this->scanFile(
-                $file->getPathname(),
-                $collection
-            );
-            if ($fileMatches->count() !== 0) {
-                $directoryMatches[] = $fileMatches;
+            $scanResult = $this->scanFile($file->getPathname(), $collection);
+            if ($scanResult->isFileIgnored()) {
+                $numberOfIgnoredFiles++;
+                continue;
+            }
+
+            $numberOfEffectiveCodeLines += $scanResult->getEffectiveCodeLines();
+            $numberOfIgnoreLines += $scanResult->getIgnoredLines();
+
+            if ($scanResult->getMatches() !== []) {
+                $directoryResult[] = $scanResult;
             }
         }
 
-        return $directoryMatches;
+        $directoryResult->setNumberOfIgnoredFiles($numberOfIgnoredFiles);
+        $directoryResult->setEffectiveCodeLines($numberOfEffectiveCodeLines);
+        $directoryResult->setIgnoredLines($numberOfIgnoreLines);
+
+        return $directoryResult;
     }
 
-    public function scanFile(
-        string $absoluteFilePath,
-        MatcherBundleCollection $collection
-    ): FileMatches {
+    public function scanFile(string $absoluteFilePath, MatcherBundleCollection $collection): ScanResult
+    {
         if (!is_file($absoluteFilePath) || !is_readable($absoluteFilePath)) {
             throw new \RuntimeException(
                 'File ' . $absoluteFilePath . ' does not exist or is not readable.',
@@ -91,10 +100,10 @@ class Scanner
         try {
             $statements = $this->parser->parse((string)file_get_contents($absoluteFilePath));
         } catch (Error $error) {
-            return $this->buildParseExceptionFileMatches($absoluteFilePath, $error);
+            return new ScanResult($absoluteFilePath, [], $error->getMessage(), false, 0, 0);
         }
         if ($statements === null) {
-            return new FileMatches($absoluteFilePath, []);
+            return new ScanResult($absoluteFilePath, [], 'File could not be parsed.', false, 0, 0);
         }
 
         // The built in NameResolver translates class names shortened with 'use' to fully
@@ -120,15 +129,22 @@ class Scanner
         }
         $traverser->traverse($statements);
 
-        return new FileMatches($absoluteFilePath, $this->buildMatches($matchers));
+        return new ScanResult(
+            $absoluteFilePath,
+            $this->buildMatches($matchers),
+            null,
+            $statistics->isFileIgnored(),
+            $statistics->getNumberOfEffectiveCodeLines(),
+            $statistics->getNumberOfIgnoredLines()
+        );
     }
 
     /**
-     * The registry declares each matcher with a configuration file. Requiring those 23 files
+     * The registry declares each matcher with a configuration file. Requiring those files
      * for every scanned file costs seconds over a whole extension and buys nothing, so the
      * loaded configurations are kept and handed to the factory as configurationArray.
      *
-     * @return list<array<string, mixed>>
+     * @return array<int, array{class?: string, configurationFile?: string, configurationArray?: mixed}>
      * @throws \RuntimeException if a declared configuration file is missing or malformed
      */
     private function getResolvedMatcherConfigurations(MatcherBundleCollection $collection): array
@@ -144,7 +160,7 @@ class Scanner
 
     /**
      * @param CodeScannerInterface[]|NodeVisitor[] $matchers
-     * @return ScanMatch[]
+     * @return list<ScanMatch>
      */
     private function buildMatches(array $matchers): array
     {
@@ -171,21 +187,6 @@ class Scanner
         }
 
         return $matches;
-    }
-
-    private function buildParseExceptionFileMatches(
-        string $file,
-        Error $error
-    ): FileMatches {
-        $match = new ScanMatch(
-            $error::class,
-            Indicator::from('strong'),
-            $error->getMessage(),
-            $error->getStartLine(),
-            [],
-            ScanMatch::TYPE_BREAKING
-        );
-        return new FileMatches($file, [$match]);
     }
 
     private function getShortClassName(string $fullyQualifiedClassName): string

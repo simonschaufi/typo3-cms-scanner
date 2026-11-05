@@ -172,7 +172,7 @@ abstract class AbstractCoreMatcher extends NodeVisitorAbstract implements CodeSc
      * A first-class callable ("foo(...)") has a single VariadicPlaceholder
      * instead of arguments, so there is nothing to count either.
      *
-     * @param array<int, Node\Arg|Node\VariadicPlaceholder> $arguments List of arguments
+     * @param array<int, Node\Arg|Node\ArgPlaceholder|Node\VariadicPlaceholder> $arguments List of arguments
      */
     protected function isArgumentUnpackingUsed(array $arguments = []): bool
     {

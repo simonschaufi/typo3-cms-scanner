@@ -6,12 +6,11 @@ namespace SimonSchaufi\Scanner\Tests\Functional;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use SimonSchaufi\Scanner\Domain\Model\DirectoryMatches;
-use SimonSchaufi\Scanner\Domain\Model\FileMatches;
 use SimonSchaufi\Scanner\Domain\Model\MatcherBundle;
 use SimonSchaufi\Scanner\Domain\Model\MatcherBundleCollection;
 use SimonSchaufi\Scanner\Domain\Model\ScanMatch;
 use SimonSchaufi\Scanner\Php\Matcher;
+use SimonSchaufi\Scanner\Result\ScanResult;
 use SimonSchaufi\Scanner\ScannerFactory;
 
 final class ScannerTest extends TestCase
@@ -55,16 +54,6 @@ final class ScannerTest extends TestCase
     }
 
     #[Test]
-    public function scanPathReturnsDirectoryMatchesInstance(): void
-    {
-        $scanner = ScannerFactory::create()->createFor(8, 3);
-
-        $result = $scanner->scanPath(self::FIXTURES_PATH, $this->collection);
-
-        self::assertInstanceOf(DirectoryMatches::class, $result);
-    }
-
-    #[Test]
     public function scanPathFindsMatchesInFixturesDirectory(): void
     {
         $scanner = ScannerFactory::create()->createFor(8, 3);
@@ -84,15 +73,12 @@ final class ScannerTest extends TestCase
         $cleanFilePath = realpath(self::FIXTURES_PATH . '/CleanCodeFixture.php');
         self::assertNotFalse($cleanFilePath);
 
-        /** @var FileMatches $fileMatches */
-        foreach ($result as $fileMatches) {
-            if ($fileMatches->getPath() === $cleanFilePath) {
+        /** @var ScanResult $scanResult */
+        foreach ($result as $scanResult) {
+            if ($scanResult->getFile() === $cleanFilePath) {
                 self::fail('CleanCodeFixture.php should produce no matches, but it did.');
             }
         }
-
-        // If we reach this point the clean file either wasn't included in results (good)
-        self::assertTrue(true);
     }
 
     #[Test]
@@ -101,12 +87,11 @@ final class ScannerTest extends TestCase
         $scanner = ScannerFactory::create()->createFor(8, 3);
         $fixturePath = self::FIXTURES_PATH . '/DeprecatedMethodCallFixture.php';
 
-        $fileMatches = $scanner->scanFile($fixturePath, $this->collection);
+        $scanResult = $scanner->scanFile($fixturePath, $this->collection);
 
-        self::assertInstanceOf(FileMatches::class, $fileMatches);
         self::assertGreaterThan(
             0,
-            $fileMatches->count(),
+            count($scanResult->getMatches()),
             'Expected matches in DeprecatedMethodCallFixture.php but found none.'
         );
     }
@@ -117,12 +102,11 @@ final class ScannerTest extends TestCase
         $scanner = ScannerFactory::create()->createFor(8, 3);
         $fixturePath = self::FIXTURES_PATH . '/DeprecatedClassNameFixture.php';
 
-        $fileMatches = $scanner->scanFile($fixturePath, $this->collection);
+        $scanResult = $scanner->scanFile($fixturePath, $this->collection);
 
-        self::assertInstanceOf(FileMatches::class, $fileMatches);
         self::assertGreaterThan(
             0,
-            $fileMatches->count(),
+            count($scanResult->getMatches()),
             'Expected matches in DeprecatedClassNameFixture.php but found none.'
         );
     }
@@ -133,10 +117,9 @@ final class ScannerTest extends TestCase
         $scanner = ScannerFactory::create()->createFor(8, 3);
         $fixturePath = self::FIXTURES_PATH . '/CleanCodeFixture.php';
 
-        $fileMatches = $scanner->scanFile($fixturePath, $this->collection);
+        $scanResult = $scanner->scanFile($fixturePath, $this->collection);
 
-        self::assertInstanceOf(FileMatches::class, $fileMatches);
-        self::assertSame(0, $fileMatches->count(), 'Expected no matches in CleanCodeFixture.php.');
+        self::assertCount(0, $scanResult->getMatches(), 'Expected no matches in CleanCodeFixture.php.');
     }
 
     #[Test]
@@ -145,10 +128,9 @@ final class ScannerTest extends TestCase
         $scanner = ScannerFactory::create()->createFor(8, 3);
         $fixturePath = self::FIXTURES_PATH . '/DeprecatedMethodCallFixture.php';
 
-        $fileMatches = $scanner->scanFile($fixturePath, $this->collection);
+        $scanResult = $scanner->scanFile($fixturePath, $this->collection);
 
-        /** @var ScanMatch $match */
-        foreach ($fileMatches as $match) {
+        foreach ($scanResult->getMatches() as $match) {
             self::assertInstanceOf(ScanMatch::class, $match);
             self::assertNotEmpty($match->getMatcher());
             self::assertGreaterThan(0, $match->getLine());
@@ -169,11 +151,11 @@ final class ScannerTest extends TestCase
         $scanner = ScannerFactory::create()->createFor(8, 3);
         $fixturePath = self::FIXTURES_PATH . '/DeprecatedMethodCallFixture.php';
 
-        $fileMatches = $scanner->scanFile($fixturePath, $this->collection);
+        $scanResult = $scanner->scanFile($fixturePath, $this->collection);
 
         $messages = array_map(
             static fn (ScanMatch $m): string => $m->getMessage(),
-            $fileMatches->getArrayCopy()
+            $scanResult->getMatches()
         );
 
         $found = array_filter(
@@ -192,7 +174,7 @@ final class ScannerTest extends TestCase
         $result = $scanner->scanPath(self::FIXTURES_PATH, $this->collection);
 
         $paths = array_map(
-            static fn (FileMatches $fm): string => $fm->getPath(),
+            static fn (ScanResult $scanResult): string => $scanResult->getFile(),
             $result->getArrayCopy()
         );
 
