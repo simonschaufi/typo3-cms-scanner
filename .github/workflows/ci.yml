@@ -47,6 +47,7 @@ jobs:
           - "composer:psr-verify"
           - "php:ecs"
           - "php:rector"
+          - "php:stan"
         php: [8.3]
 
     name: "Code quality checks"
