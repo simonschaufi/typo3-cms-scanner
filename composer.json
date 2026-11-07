@@ -65,7 +65,7 @@
 	"scripts": {
 		"ci:composer:normalize": "@composer normalize --no-check-lock --dry-run",
 		"ci:composer:psr-verify": "@composer dumpautoload --optimize --strict-psr --no-plugins",
-		"ci:php:ecs": "vendor/bin/ecs check",
+		"ci:php:ecs": "vendor/bin/ecs check --no-progress-bar",
 		"ci:php:rector": "vendor/bin/rector process --dry-run --no-progress-bar --ansi",
 		"ci:php:stan": "vendor/bin/phpstan analyse --no-progress --no-interaction --memory-limit 4G",
 		"ci:tests:unit": "vendor/bin/phpunit",
