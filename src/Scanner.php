@@ -44,8 +44,10 @@ class Scanner
     ) {
     }
 
-    public function scanPath(string $path, MatcherBundleCollection $collection): DirectoryResult
-    {
+    public function scanPath(
+        string $path,
+        MatcherBundleCollection $collection,
+    ): DirectoryResult {
         if (!is_dir($path)) {
             throw new \RuntimeException(
                 sprintf('Path "%s" does not exist or is no directory.', $path),
