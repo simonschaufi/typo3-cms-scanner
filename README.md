@@ -6,7 +6,7 @@ This is a library component that can be used to build tools that scan PHP files 
 
 Tools using this library:
 
-- [standalone TYPO3 scanner](https://github.com/simonschaufi/typo3scan-src)
+- [standalone TYPO3 scanner](https://github.com/simonschaufi/typo3scan)
 
 TYPO3 publishes [breaking changes and deprecations since version 7](https://docs.typo3.org/c/typo3/cms-core/main/en-us/Index.html).
 
